@@ -9,10 +9,15 @@ import { ProductService } from 'src/app/services/product.service';
   styleUrls: ['./product-list.component.css']
 })
 export class ProductListComponent implements OnInit {
-  products: Product[];
+  products: Product[] =[];
   categoryName: String;
   currentCategoryId: number;
-  searchMode: boolean;
+  previousCategoryId: number = 1;
+  searchMode: boolean = false;
+  thePageNumber: number = 1;
+  thePageSize: number = 5;
+  theTotalElements: number = 0;
+  previousKeyWord: string = null;
   constructor(private productService:  ProductService, 
     private route: ActivatedRoute) { }
   ngOnInit(): void {
@@ -31,9 +36,15 @@ export class ProductListComponent implements OnInit {
    }
   }
   handleSearchProduct() {
-    const theKeyWork: string = this.route.snapshot.paramMap.get('keyword');  
+    const theKeyWord: string = this.route.snapshot.paramMap.get('keyword');  
     this.categoryName = "All";
-    this.productService.searchProducts(theKeyWork).subscribe(data => this.products = data);
+    if(this.previousKeyWord != theKeyWord){
+      this.thePageNumber = 1;
+    }
+    this.previousKeyWord =  theKeyWord;
+    this.productService.searchProductListPaginate(this.thePageNumber-1,
+                                                  this.thePageSize,
+                                                  theKeyWord).subscribe(this.processResult());
   }
   handleListProduct(){
     const hasCategoryId: boolean = this.route.snapshot.paramMap.has('id');
@@ -46,12 +57,29 @@ export class ProductListComponent implements OnInit {
       this.currentCategoryId = 1;
       this.categoryName = "Books";
     }
-  
-    this.productService.getProductList(this.currentCategoryId).subscribe(
-      data => 
-        //debugger; //debug here!
-        this.products = data
-    );
+    // check if we have different category than previous
+    // Angular will reuse a component if it is currently being viewed
+    if(this.previousCategoryId != this.currentCategoryId){
+      this.thePageNumber = 1;
+    }
+    this.previousCategoryId = this.currentCategoryId;
+    //pass page number -1 because in Spring data rest pages are based 0 and in Angular based 1
+    this.productService.getProductListPaginate(this.thePageNumber - 1,
+                                                this.thePageSize,
+                                                this.currentCategoryId)
+                                                .subscribe(this.processResult());
   }
-  
+  processResult(){
+    return data =>{
+      this.products = data._embedded.products;
+      this.thePageNumber = data.page.number + 1;
+      this.thePageSize = data.page.size;
+      this.theTotalElements = data.page.totalElements;
+    }
+  }  
+  updatePageSize(pageSize: number){
+    this.thePageSize = pageSize;
+    this.thePageNumber = 1;
+    this.listProducts();
+  }
 }
