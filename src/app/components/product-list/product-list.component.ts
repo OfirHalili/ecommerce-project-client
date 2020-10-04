@@ -34,7 +34,6 @@ export class ProductListComponent implements OnInit {
    if(this.searchMode){
      this.handleSearchProduct();
    }else{
-     debugger;
      this.handleListProduct();
    }
   }
